@@ -1,0 +1,118 @@
+name: 'NPM Package Publish'
+description: 'Build and publish NPM package with TypeScript compilation'
+inputs:
+  npm_directory:
+    description: 'Directory containing package.json and NPM project files'
+    required: true
+    default: 'npm'
+  version:
+    description: 'Version to set in package.json'
+    required: true
+  token:
+    description: 'NPM authentication token'
+    required: true
+  dry_run:
+    description: 'Perform a dry run without actually publishing'
+    required: false
+    default: 'false'
+outputs:
+  published_version:
+    description: 'The version that was published'
+    value: ${{ steps.publish.outputs.published_version }}
+  package_name:
+    description: 'The name of the published package'
+    value: ${{ steps.publish.outputs.package_name }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        registry-url: 'https://registry.npmjs.org'
+      
+    - name: Update package.json version
+      shell: bash
+      working-directory: ${{ inputs.npm_directory }}
+      run: |
+        echo "Updating package.json version to ${{ inputs.version }}"
+        npm version ${{ inputs.version }} --no-git-tag-version
+        
+        # Extract package name for output
+        package_name=$(node -p "require('./package.json').name")
+        echo "package_name=$package_name" >> $GITHUB_ENV
+        
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.npm_directory }}
+      run: |
+        echo "Installing NPM dependencies (skipping scripts for security)"
+        npm install --ignore-scripts
+        
+    - name: Build TypeScript
+      shell: bash
+      working-directory: ${{ inputs.npm_directory }}
+      run: |
+        echo "Building TypeScript project"
+        npm run build
+        
+    - name: Verify build output
+      shell: bash
+      working-directory: ${{ inputs.npm_directory }}
+      run: |
+        echo "Verifying build output:"
+        ls -la dist/ || echo "No dist directory found"
+        
+        # Check if main file exists
+        main_file=$(node -p "require('./package.json').main || 'dist/cli.js'")
+        if [ -f "$main_file" ]; then
+          echo "✓ Main file exists: $main_file"
+        else
+          echo "✗ Main file missing: $main_file"
+          exit 1
+        fi
+        
+        # Check if bin file exists (if defined)
+        bin_path=$(node -p "
+          const pkg = require('./package.json');
+          if (typeof pkg.bin === 'string') {
+            pkg.bin;
+          } else if (typeof pkg.bin === 'object') {
+            Object.values(pkg.bin)[0];
+          } else {
+            '';
+          }
+        ")
+        
+        if [ -n "$bin_path" ] && [ -f "$bin_path" ]; then
+          echo "✓ Binary file exists: $bin_path"
+        elif [ -n "$bin_path" ]; then
+          echo "✗ Binary file missing: $bin_path"
+          exit 1
+        fi
+        
+    - name: Publish to NPM
+      id: publish
+      shell: bash
+      working-directory: ${{ inputs.npm_directory }}
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.token }}
+      run: |
+        echo "Publishing package to NPM..."
+        
+        if [ "${{ inputs.dry_run }}" = "true" ]; then
+          echo "Performing dry run..."
+          npm publish --dry-run
+          echo "Dry run completed successfully"
+        else
+          echo "Publishing for real..."
+          npm publish
+          echo "Package published successfully"
+        fi
+        
+        # Set outputs
+        echo "published_version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+        echo "package_name=${{ env.package_name }}" >> $GITHUB_OUTPUT
+        
+        echo "Published: ${{ env.package_name }}@${{ inputs.version }}"
