@@ -1,4 +1,4 @@
-name: 'Rust Cross-Platform Release'
+name: 'Rust NPM Publish'
 
 on:
   workflow_call:
@@ -37,16 +37,16 @@ on:
         default: 'stable'
         type: string
       node_version:
-        description: 'Node.js version for NPM publishing (e.g., 18, 20, latest)'
+        description: 'Node.js version for NPM publishing (e.g., 18, 20, lts/*, latest)'
         required: false
-        default: '18'
+        default: 'lts/*'
         type: string
     secrets:
       NPM_TOKEN:
         description: 'NPM authentication token'
         required: false
-      GITHUB_TOKEN:
-        description: 'GitHub token for release'
+      GH_TOKEN:
+        description: 'GitHub token for release (pass secrets.GITHUB_TOKEN here)'
         required: true
 
 env:
@@ -138,8 +138,13 @@ jobs:
           
           # Determine binaries to build
           if [ "${{ inputs.binaries }}" = "all" ]; then
-            # Default to main binary if 'all' is specified
-            binaries="${{ inputs.main_binary }}"
+            # List all binaries from Cargo.toml and filter out those starting with _
+            all_binaries=$(grep -oP '^[[bin]]\nname = "\K[^"]+' Cargo.toml | grep -v '^_')
+            binaries=$(echo "$all_binaries" | tr '\n' ',' | sed 's/,$//')
+            # If all binaries were filtered, default to main_binary
+            if [ -z "$binaries" ]; then
+              binaries="${{ inputs.main_binary }}"
+            fi
           else
             binaries="${{ inputs.binaries }}"
           fi
@@ -175,7 +180,7 @@ jobs:
           built_binaries: ${{ steps.build.outputs.built_binaries }}
           platform: ${{ matrix.platform }}
           arch: ${{ matrix.arch }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN }}
 
   # Publish to NPM after all builds complete
   publish-npm:
@@ -198,5 +203,5 @@ jobs:
         with:
           npm_directory: ${{ inputs.npm_directory }}
           version: ${{ steps.version.outputs.version }}
-          token: ${{ secrets.NPM_TOKEN }}
+          npm_token: ${{ secrets.NPM_TOKEN }}
           node_version: ${{ inputs.node_version }}
