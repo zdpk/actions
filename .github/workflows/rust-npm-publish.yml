@@ -1,4 +1,4 @@
-name: 'Rust Cross-Platform Release'
+name: 'Rust NPM Publish'
 
 on:
   workflow_call:
@@ -37,9 +37,9 @@ on:
         default: 'stable'
         type: string
       node_version:
-        description: 'Node.js version for NPM publishing (e.g., 18, 20, latest)'
+        description: 'Node.js version for NPM publishing (e.g., 18, 20, lts/*, latest)'
         required: false
-        default: '18'
+        default: 'lts/*'
         type: string
     secrets:
       NPM_TOKEN:
@@ -138,8 +138,13 @@ jobs:
           
           # Determine binaries to build
           if [ "${{ inputs.binaries }}" = "all" ]; then
-            # Default to main binary if 'all' is specified
-            binaries="${{ inputs.main_binary }}"
+            # List all binaries from Cargo.toml and filter out those starting with _
+            all_binaries=$(grep -oP '^[[bin]]\nname = "\K[^"]+' Cargo.toml | grep -v '^_')
+            binaries=$(echo "$all_binaries" | tr '\n' ',' | sed 's/,$//')
+            # If all binaries were filtered, default to main_binary
+            if [ -z "$binaries" ]; then
+              binaries="${{ inputs.main_binary }}"
+            fi
           else
             binaries="${{ inputs.binaries }}"
           fi
