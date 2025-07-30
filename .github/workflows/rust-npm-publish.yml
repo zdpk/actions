@@ -180,7 +180,7 @@ jobs:
           built_binaries: ${{ steps.build.outputs.built_binaries }}
           platform: ${{ matrix.platform }}
           arch: ${{ matrix.arch }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN }}
 
   # Publish to NPM after all builds complete
   publish-npm:
