@@ -4,32 +4,23 @@ on:
   workflow_call:
     inputs:
       binaries:
-        description: 'Binaries to build and release (comma-separated): pm,_pm or "all"'
-        required: false
-        default: 'all'
-        type: string
-      platforms:
-        description: 'Platforms to build: macos-arm64,linux-x64,linux-arm64,windows-x64,windows-arm64 or "all"'
-        required: false
-        default: 'all'
-        type: string
-      main_binary:
-        description: 'Main binary name for NPM (e.g., pm)'
+        description: 'Comma-separated list of binary names to build. The first one is used for NPM. (e.g., pm,_pm or "all")'
         required: true
         type: string
-      npm_enabled:
-        description: 'Enable NPM publishing'
+      include:
+        description: 'Platforms to build (e.g., macos-arm64,linux-x64,linux-arm64,windows-x64,windows-arm64 or "all")'
         required: false
-        default: true
-        type: boolean
+        default: 'all'
+        type: string
+      exclude:
+        description: 'Platforms to exclude (e.g., windows-x64,linux-x64)'
+        required: false
+        default: ''
+        type: string
       npm_directory:
         description: 'Directory containing NPM project'
         required: false
         default: 'npm'
-        type: string
-      tag_name:
-        description: 'Release tag name (auto-detected if not provided)'
-        required: false
         type: string
       rust_version:
         description: 'Rust toolchain version (e.g., stable, 1.70.0, nightly)'
@@ -53,7 +44,15 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Prepare build matrix based on platform inputs
+  validate-inputs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for conflicting inputs
+        if: "inputs.include != 'all' && inputs.exclude != ''"
+        run: |
+          echo "Error: 'include' and 'exclude' cannot be used at the same time." >&2
+          exit 1
+
   prepare-matrix:
     runs-on: ubuntu-latest
     outputs:
@@ -65,11 +64,7 @@ jobs:
         id: matrix
         run: |
           # Determine tag name
-          if [ -n "${{ inputs.tag_name }}" ]; then
-            tag_name="${{ inputs.tag_name }}"
-          else
-            tag_name="${{ github.ref_name }}"
-          fi
+          tag_name="${{ github.ref_name }}"
           echo "tag_name=$tag_name" >> $GITHUB_OUTPUT
           
           # Define all available platforms
@@ -111,47 +106,42 @@ jobs:
             }
           ]'
           
-          # Filter platforms based on input
-          if [ "${{ inputs.platforms }}" = "all" ]; then
-            selected_platforms="$all_platforms"
-          else
-            # Parse comma-separated platform list and filter
-            selected_platforms="[]"
-            IFS=',' read -ra PLATFORM_ARRAY <<< "${{ inputs.platforms }}"
-            
-            for platform_arch in "${PLATFORM_ARRAY[@]}"; do
+          # Filter platforms based on include/exclude inputs
+          selected_platforms="[]"
+          if [ "${{ inputs.include }}" != "all" ]; then
+            IFS=',' read -ra INCLUDE_ARRAY <<< "${{ inputs.include }}"
+            for platform_arch in "${INCLUDE_ARRAY[@]}"; do
               platform_arch=$(echo "$platform_arch" | xargs) # trim whitespace
-              
-              # Extract matching platform from all_platforms
               matching_platform=$(echo "$all_platforms" | jq --arg pa "$platform_arch" '.[] | select(.platform + "-" + .arch == $pa)')
-              
               if [ -n "$matching_platform" ]; then
                 selected_platforms=$(echo "$selected_platforms" | jq ". += [$matching_platform]")
               else
-                echo "Warning: Unknown platform '$platform_arch' ignored"
+                echo "Warning: Unknown platform '$platform_arch' in include list ignored" >&2
               fi
+            done
+          else
+            selected_platforms="$all_platforms"
+          fi
+
+          if [ -n "${{ inputs.exclude }}" ]; then
+            IFS=',' read -ra EXCLUDE_ARRAY <<< "${{ inputs.exclude }}"
+            for platform_arch in "${EXCLUDE_ARRAY[@]}"; do
+              platform_arch=$(echo "$platform_arch" | xargs) # trim whitespace
+              selected_platforms=$(echo "$selected_platforms" | jq --arg pa "$platform_arch" 'map(select(.platform + "-" + .arch != $pa))')
             done
           fi
           
           matrix_json="{\"include\":$selected_platforms}"
           echo "matrix=$matrix_json" >> $GITHUB_OUTPUT
           
-          # Determine binaries to build
-          if [ "${{ inputs.binaries }}" = "all" ]; then
-            # List all binaries from Cargo.toml and filter out those starting with _
-            all_binaries=$(grep -oP '^[[bin]]\nname = "\K[^"]+' Cargo.toml | grep -v '^_')
-            binaries=$(echo "$all_binaries" | tr '\n' ',' | sed 's/,$//')
-            # If all binaries were filtered, default to main_binary
-            if [ -z "$binaries" ]; then
-              binaries="${{ inputs.main_binary }}"
-            fi
-          else
-            binaries="${{ inputs.binaries }}"
-          fi
-          echo "binaries=$binaries" >> $GITHUB_OUTPUT
+          # Extract main_binary from binaries input
+          IFS=',' read -ra BINARY_ARRAY <<< "${{ inputs.binaries }}"
+          main_binary="${BINARY_ARRAY[0]}"
+          echo "main_binary=$main_binary" >> $GITHUB_OUTPUT
           
           echo "Selected platforms: $selected_platforms"
-          echo "Binaries to build: $binaries"
+          echo "Binaries to build: ${{ inputs.binaries }}"
+          echo "Main binary for NPM: $main_binary"
           echo "Tag name: $tag_name"
 
   # Build binaries for each platform
@@ -184,7 +174,6 @@ jobs:
 
   # Publish to NPM after all builds complete
   publish-npm:
-    if: inputs.npm_enabled
     needs: [prepare-matrix, build]
     runs-on: ubuntu-latest
     steps:
