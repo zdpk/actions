@@ -45,8 +45,8 @@ on:
       NPM_TOKEN:
         description: 'NPM authentication token'
         required: false
-      GITHUB_TOKEN:
-        description: 'GitHub token for release'
+      GH_TOKEN:
+        description: 'GitHub token for release (pass secrets.GITHUB_TOKEN here)'
         required: true
 
 env:
@@ -203,5 +203,5 @@ jobs:
         with:
           npm_directory: ${{ inputs.npm_directory }}
           version: ${{ steps.version.outputs.version }}
-          token: ${{ secrets.NPM_TOKEN }}
+          npm_token: ${{ secrets.NPM_TOKEN }}
           node_version: ${{ inputs.node_version }}
