@@ -1,0 +1,84 @@
+name: 'Rust Cross-Platform Build'
+description: 'Build Rust binaries for multiple targets with cross-compilation support'
+inputs:
+  target:
+    description: 'Rust target triple (e.g., x86_64-unknown-linux-gnu)'
+    required: true
+  binaries:
+    description: 'Comma-separated list of binary names to build (e.g., pm,_pm)'
+    required: true
+  cross_compile:
+    description: 'Enable cross-compilation setup for ARM targets'
+    required: false
+    default: 'false'
+  rust_version:
+    description: 'Rust toolchain version (e.g., stable, 1.70.0, nightly)'
+    required: false
+    default: 'stable'
+outputs:
+  built_binaries:
+    description: 'JSON array of built binary information'
+    value: ${{ steps.build.outputs.built_binaries }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ inputs.rust_version }}
+        targets: ${{ inputs.target }}
+        
+    - name: Set up cross-compilation tools (Linux ARM64)
+      if: inputs.cross_compile == 'true'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu
+        
+    - name: Build binaries
+      id: build
+      shell: bash
+      run: |
+        # Set cross-compilation linker if needed
+        if [ "${{ inputs.cross_compile }}" = "true" ]; then
+          export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+        fi
+        
+        # Parse binaries input
+        IFS=',' read -ra BINARY_ARRAY <<< "${{ inputs.binaries }}"
+        
+        # Build all binaries for the target
+        cargo build --release --target ${{ inputs.target }}
+        
+        # Prepare binary information
+        built_binaries="["
+        first=true
+        
+        for binary in "${BINARY_ARRAY[@]}"; do
+          binary=$(echo "$binary" | xargs) # trim whitespace
+          
+          # Determine source binary name and extension
+          if [[ "${{ inputs.target }}" == *"windows"* ]]; then
+            source_binary="${binary}.exe"
+          else
+            source_binary="$binary"
+          fi
+          
+          # Check if binary exists
+          source_path="target/${{ inputs.target }}/release/$source_binary"
+          if [ -f "$source_path" ]; then
+            if [ "$first" = false ]; then
+              built_binaries="$built_binaries,"
+            fi
+            first=false
+            
+            built_binaries="$built_binaries{\"name\":\"$binary\",\"source_path\":\"$source_path\",\"extension\":\"$(if [[ \"${{ inputs.target }}\" == *\"windows\"* ]]; then echo \".exe\"; else echo \"\"; fi)\"}"
+          else
+            echo "Warning: Binary $binary not found at $source_path"
+          fi
+        done
+        
+        built_binaries="$built_binaries]"
+        echo "built_binaries=$built_binaries" >> $GITHUB_OUTPUT
+        echo "Built binaries info: $built_binaries"
