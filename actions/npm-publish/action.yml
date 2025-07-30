@@ -15,6 +15,10 @@ inputs:
     description: 'Perform a dry run without actually publishing'
     required: false
     default: 'false'
+  node_version:
+    description: 'Node.js version (e.g., 18, 20, latest)'
+    required: false
+    default: '18'
 outputs:
   published_version:
     description: 'The version that was published'
@@ -29,7 +33,7 @@ runs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: ${{ inputs.node_version }}
         registry-url: 'https://registry.npmjs.org'
       
     - name: Update package.json version

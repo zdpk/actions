@@ -11,6 +11,10 @@ inputs:
     description: 'Enable cross-compilation setup for ARM targets'
     required: false
     default: 'false'
+  rust_version:
+    description: 'Rust toolchain version (e.g., stable, 1.70.0, nightly)'
+    required: false
+    default: 'stable'
 outputs:
   built_binaries:
     description: 'JSON array of built binary information'
@@ -22,6 +26,7 @@ runs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
       with:
+        toolchain: ${{ inputs.rust_version }}
         targets: ${{ inputs.target }}
         
     - name: Set up cross-compilation tools (Linux ARM64)

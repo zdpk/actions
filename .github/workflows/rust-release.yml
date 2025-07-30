@@ -31,6 +31,16 @@ on:
         description: 'Release tag name (auto-detected if not provided)'
         required: false
         type: string
+      rust_version:
+        description: 'Rust toolchain version (e.g., stable, 1.70.0, nightly)'
+        required: false
+        default: 'stable'
+        type: string
+      node_version:
+        description: 'Node.js version for NPM publishing (e.g., 18, 20, latest)'
+        required: false
+        default: '18'
+        type: string
     secrets:
       NPM_TOKEN:
         description: 'NPM authentication token'
@@ -156,6 +166,7 @@ jobs:
           target: ${{ matrix.target }}
           binaries: ${{ needs.prepare-matrix.outputs.binaries }}
           cross_compile: ${{ matrix.cross_compile }}
+          rust_version: ${{ inputs.rust_version }}
           
       - name: Upload to GitHub Release
         uses: ./actions/actions/github-release
@@ -188,3 +199,4 @@ jobs:
           npm_directory: ${{ inputs.npm_directory }}
           version: ${{ steps.version.outputs.version }}
           token: ${{ secrets.NPM_TOKEN }}
+          node_version: ${{ inputs.node_version }}
