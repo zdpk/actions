@@ -46,7 +46,7 @@ runs:
               && find . -type f -not -path './.git/*' -print0 \
               | LC_ALL=C sort -z \
               | xargs -0 sha256sum \
-              | sha256sum
+              | sha256sum \
               | cut -c1-16 )
           )"
           ACTION_DIGEST="content-$digest"
