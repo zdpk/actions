@@ -11,7 +11,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Run test.sh
         run: |
-          chmod +x actions/_shared/test.sh
+          # chmod +x actions/_shared/test.sh
           echo "A=$A"
           $GITHUB_WORKSPACE/scripts/test.sh
           echo "GITHUB_WORKSPACE = $GITHUB_WORKSPACE"
