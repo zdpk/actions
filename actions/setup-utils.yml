@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: "Test Composite Workflow"
+description: "test"
+
+runs:
+  using: composite
+  steps:
+    - id: meta
+      shell: bash
+      env:
+        ACTION_REPO: ${{ github.action_repository }}
+        ACTION_REF: ${{ github.action_ref }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+
+        echo "GITHUB_WORKSPACE          : $GITHUB_WORKSPACE"
+        echo "github.workspace   : ${{ github.workspace }}"
+        echo "ACTION_REF         : $ACTION_REF"
+        echo "GITHUB_ACTION_PATH : $GITHUB_ACTION_PATH"
+        echo "ACTION_PATH        : $ACTION_PATH"
+
+        # # 1)
+        # if [[ -n "$ACTION_REF" && "$ACTION_REF" =~ ^[0-9a-f]{40}$ ]]; then
+        #   DIGEST="$ACTION_REF"
+        # else
+        #   # 
+        #   DIGEST="$( (cd "$ACTION_PATH" && tar -cf - . | sha256sum | cut -c1-16) )"
+        # fi
+    # - name: check cache includes util scripts
+    #   id: cache
+    #   uses: actions/cache/restore@v4
+    #   with:
+    #     path: util
+    #     key: util
+    #     restore-keys: util
+        
+    # - name: fetch actions scripts
+    #   shell: bash
+    #   run: |
+    #     git clone https://github.com/zdpk/actions
+    #     chmod +x actions
+    #     echo "${{ github.ref }}"
+
+

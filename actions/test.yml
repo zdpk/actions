@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: "Test Composite Workflow"
+description: "test"
+
+runs:
+  using: composite
+  steps:
+    - name: fetch repo
+      shell: bash
+      run: |
+
+    - name: test
+      shell: bash
+      run: |
+        git clone https://github.com/zdpk/actions
+        chmod +x actions
+        echo "${{ github.ref }}"
+
+
