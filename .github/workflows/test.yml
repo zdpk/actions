@@ -1,0 +1,14 @@
+name: Test Actions
+
+on:
+  workflow_dispatch:
+    
+jobs:
+  test1:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          export A=1
+          echo $A
+          ./actions/_shared/test.sh
+    
