@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+ㅎ# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
 name: "Test Composite Workflow"
 description: "test"
 
@@ -9,7 +9,6 @@ inputs:
     default: 'false'
 env:
   CACHE_KEY_PREFIX="-zdpk-actions-scripts"
-  DEBUG: ${{ inputs.debug }}
 
 runs:
   using: composite
@@ -20,15 +19,21 @@ runs:
         ACTION_REPO: ${{ github.action_repository }}
         ACTION_REF: ${{ github.action_ref }}
         ACTION_PATH: ${{ github.action_path }}
+        DEBUG: ${{ inputs.debug }}
       run: |
         set -euo pipefail
 
-        if [[ DEBUG == 'true' ]]; then;
+        if [[ $DEBUG == 'true' ]]; then;
           echo "GITHUB_WORKSPACE          : $GITHUB_WORKSPACE"
           echo "github.workspace          : ${{ github.workspace }}"
           echo "ACTION_REF                : $ACTION_REF"
           echo "GITHUB_ACTION_PATH        : $GITHUB_ACTION_PATH"
           echo "ACTION_PATH               : $ACTION_PATH"
+        fi
+
+        if ! command -v sha256sum >/dev/null 2>&1; then
+          echo "`sha256sum` doesn't exist"
+          exit 1
         fi
 
         # 1) if `action_ref` is not sha, replace to hashed content  
@@ -40,8 +45,8 @@ runs:
             ( cd "$ACTION_PATH" \
               && find . -type f -not -path '././git/*' -print0 \
               | LC_COLLATE=C sort -z \
-              | xargs -0 $hasher \
-              | $hasher
+              | xargs -0 sha256sum \
+              | sha256sum
               | cut -c1-16 )
           )"
           ACTION_DIGEST="content-$digest"
