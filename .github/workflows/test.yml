@@ -15,7 +15,7 @@ jobs:
           echo "A=$A"
           $GITHUB_WORKSPACE/scripts/test.sh
           echo "GITHUB_WORKSPACE = $GITHUB_WORKSPACE"
-          ./scripts/test.sh/test.sh
+          ./scripts/test.sh
         env:
           A: "1"
     
