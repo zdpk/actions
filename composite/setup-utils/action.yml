@@ -23,7 +23,7 @@ runs:
       run: |
         set -euo pipefail
 
-        if [[ $DEBUG == 'true' ]]; then;
+        if [[ $DEBUG == 'true' ]]; then
           echo "GITHUB_WORKSPACE          : $GITHUB_WORKSPACE"
           echo "github.workspace          : ${{ github.workspace }}"
           echo "ACTION_REF                : $ACTION_REF"
