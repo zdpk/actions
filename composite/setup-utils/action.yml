@@ -23,7 +23,7 @@ runs:
       run: |
         set -euo pipefail
 
-        if [[ $DEBUG == 'true' ]]; then
+        if [[ "$DEBUG" == 'true' ]]; then
           echo "GITHUB_WORKSPACE          : $GITHUB_WORKSPACE"
           echo "github.workspace          : ${{ github.workspace }}"
           echo "ACTION_REF                : $ACTION_REF"
@@ -43,8 +43,8 @@ runs:
           # exclude metadata
           digest="$(
             ( cd "$ACTION_PATH" \
-              && find . -type f -not -path '././git/*' -print0 \
-              | LC_COLLATE=C sort -z \
+              && find . -type f -not -path './.git/*' -print0 \
+              | LC_ALL=C sort -z \
               | xargs -0 sha256sum \
               | sha256sum
               | cut -c1-16 )
@@ -63,7 +63,7 @@ runs:
         echo "scripts-dir=$scripts_dir" >> "$GITHUB_OUTPUT"
         echo "cache-key=$cache_key" >> "$GITHUB_OUTPUT"
 
-        if [[ DEBUG == 'true' ]]; then
+        if [[ "$DEBUG" == 'true' ]]; then
           echo "digest                    : $digest"
           echo "repo_slug                 : $repo_slug"
           echo "cache_key                 : $cache_key"
