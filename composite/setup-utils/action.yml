@@ -2,6 +2,15 @@
 name: "Test Composite Workflow"
 description: "test"
 
+inputs:
+  debug:
+    description: 'whether prints envs or not'
+    required: false
+    default: 'false'
+env:
+  CACHE_KEY_PREFIX="-zdpk-actions-scripts"
+  DEBUG: ${{ inputs.debug }}
+
 runs:
   using: composite
   steps:
@@ -14,19 +23,48 @@ runs:
       run: |
         set -euo pipefail
 
-        echo "GITHUB_WORKSPACE          : $GITHUB_WORKSPACE"
-        echo "github.workspace   : ${{ github.workspace }}"
-        echo "ACTION_REF         : $ACTION_REF"
-        echo "GITHUB_ACTION_PATH : $GITHUB_ACTION_PATH"
-        echo "ACTION_PATH        : $ACTION_PATH"
+        if [[ DEBUG == 'true' ]]; then;
+          echo "GITHUB_WORKSPACE          : $GITHUB_WORKSPACE"
+          echo "github.workspace          : ${{ github.workspace }}"
+          echo "ACTION_REF                : $ACTION_REF"
+          echo "GITHUB_ACTION_PATH        : $GITHUB_ACTION_PATH"
+          echo "ACTION_PATH               : $ACTION_PATH"
+        fi
 
-        # # 1)
-        # if [[ -n "$ACTION_REF" && "$ACTION_REF" =~ ^[0-9a-f]{40}$ ]]; then
-        #   DIGEST="$ACTION_REF"
-        # else
-        #   # 
-        #   DIGEST="$( (cd "$ACTION_PATH" && tar -cf - . | sha256sum | cut -c1-16) )"
-        # fi
+        # 1) if `action_ref` is not sha, replace to hashed content  
+        if [[ -n "$ACTION_REF" && "$ACTION_REF" =~ ^[0-9A-Fa-f]{40}$ ]]; then
+          digest="$ACTION_REF"
+        else
+          # exclude metadata
+          digest="$(
+            ( cd "$ACTION_PATH" \
+              && find . -type f -not -path '././git/*' -print0 \
+              | LC_COLLATE=C sort -z \
+              | xargs -0 $hasher \
+              | $hasher
+              | cut -c1-16 )
+          )"
+          ACTION_DIGEST="content-$digest"
+        fi
+
+        # owner/repo -> owner-repo
+        repo_slug="${ACTION_REPO//\//-}"
+
+        cache_key="$CACHE_KEY_PREFIX-$repo_slug-$digest"
+        scripts_dir="$GITHUB_WORKSPACE/$ACTION_REPO/scripts"
+
+        mkdir -p "$scripts_dir"
+
+        echo "scripts-dir=$scripts_dir" >> "$GITHUB_OUTPUT"
+        echo "cache-key=$cache_key" >> "$GITHUB_OUTPUT"
+
+        if [[ DEBUG == 'true' ]]; then
+          echo "digest                    : $digest"
+          echo "repo_slug                 : $repo_slug"
+          echo "cache_key                 : $cache_key"
+          echo "scripts_dir               : $scripts_dir"
+        fi
+          
     # - name: check cache includes util scripts
     #   id: cache
     #   uses: actions/cache/restore@v4
@@ -43,3 +81,4 @@ runs:
     #     echo "${{ github.ref }}"
 
 
+  
