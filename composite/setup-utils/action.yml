@@ -7,15 +7,13 @@ inputs:
     description: 'whether prints envs or not'
     required: false
     default: 'false'
-env:
-  CACHE_KEY_PREFIX: "-zdpk-actions-scripts"
-
 runs:
   using: composite
   steps:
     - id: meta
       shell: bash
       env:
+        CACHE_KEY_PREFIX: "-zdpk-actions-scripts"
         ACTION_REPO: ${{ github.action_repository }}
         ACTION_REF: ${{ github.action_ref }}
         ACTION_PATH: ${{ github.action_path }}
