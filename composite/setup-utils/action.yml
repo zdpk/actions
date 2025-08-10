@@ -8,7 +8,7 @@ inputs:
     required: false
     default: 'false'
 env:
-  CACHE_KEY_PREFIX="-zdpk-actions-scripts"
+  CACHE_KEY_PREFIX: "-zdpk-actions-scripts"
 
 runs:
   using: composite
