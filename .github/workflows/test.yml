@@ -7,8 +7,13 @@ jobs:
   test1:
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          export A=1
-          echo $A
-          ./actions/_shared/test.sh
+      # - name: Checkout repo
+      #   uses: actions/checkout@v4
+      - name: Run test.sh
+        run: |
+          chmod +x actions/_shared/test.sh
+          echo "A=$A"
+          $GITHUB_WORKSPACE/actions/_shared/test.sh
+        env:
+          A: "1"
     
