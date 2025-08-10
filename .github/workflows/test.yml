@@ -13,7 +13,9 @@ jobs:
         run: |
           chmod +x actions/_shared/test.sh
           echo "A=$A"
-          $GITHUB_WORKSPACE/actions/_shared/test.sh
+          $GITHUB_WORKSPACE/scripts/test.sh
+          echo "GITHUB_WORKSPACE = $GITHUB_WORKSPACE"
+          ./scripts/_shared/test.sh
         env:
           A: "1"
     
