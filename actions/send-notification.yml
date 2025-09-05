@@ -1,0 +1,19 @@
+name: Send Notification
+description: Send notification to multiple platforms
+
+inputs:
+  title:
+    description: 'Notification title'
+    required: true
+  message:
+    description: 'Notification message'
+    required: true
+  platforms:
+    description: 'Comma-separated list of platforms to send notifications to (e.g., slack, email)'
+    required: true
+  slack_webhook_url:
+    description: 'Slack Webhook URL (required if slack is in platforms)'
+    required: false
+  email_recipient:
+    description: 'Email recipient address (required if email is in platforms)'
+    required: false
