@@ -1,0 +1,109 @@
+name: Sync Obsidian Blog
+
+on:
+  workflow_call:
+    inputs:
+      dest-repository:
+        required: true
+
+      dest-ref:
+        required: false
+        default: main
+
+      src-dir:
+        required: false
+        default: content/posts
+
+      post-dir:
+        required: false
+        default: posts
+
+      attachment-dir:
+        required: false
+        default: attachment
+
+      dest-dir:
+        required: false
+        default: pages
+
+    secrets:
+      # secrets for target repo
+      GITHUB_PAT:
+        required: true
+
+# prevent concurrent runs on the same ref in the same repo
+concurrency:
+  group: sync-posts-${{ github.ref }}
+  # queueing
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      # source/dest repos
+      # 1. checkout current repo
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          ref: main
+          fetch-depth: 1
+
+      # 2. rsync
+      - name: Detect changes in content/
+        id: diff
+        run: |
+          local before="${{ github.event.before }}"
+          local after="${{ github.sha }}"
+
+          if [[ "$before" == "0000000000000000000000000000000000000000" || -z "$before" ]]; then
+            before=$(git hash-object -t tree /dev/null)
+          fi
+
+          git fetch --no-tags origin "$before" "$after" >/dev/null 2>&1 || true
+          if git diff
+
+      # 2. sparse checkout src repo to copy files
+      - name: Checkout dest repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.dest-repo }}
+          ref: main
+          fetch-depth: 1
+
+      # 3. apply rsync
+      - name: Apply rsync posts
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          rsync -avh --delete \
+            --exclude='.obsidian/' \
+            --exclude='.DS_Store' \
+            ${{ inputs.post-dir }} ./pages/
+
+      - name: Apply rsync attachments
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          rsync -avh --delete \
+            --exclude='.obsidian/' \
+            --exclude='.DS_Store' \
+            ${{ inputs.attachment-dir }} ./pages/
+
+      - name: Commit and Push
+        if: steps.diff.outputs.changed == 'true'
+        working-directory: ${{ github/workspace }}/target
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git add -A
+          git commit -m "chore(posts): sync from vault @ $GITHUB_SHA"
+          git push
