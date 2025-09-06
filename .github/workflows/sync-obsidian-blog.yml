@@ -142,5 +142,13 @@ jobs:
             exit 0
           fi
 
+          # remove extra header from dest repository directory
+          git --local --unset-all http.https://github.com/.extraheader || true
+
+          # fix PAT
+          git remote set-url origin \
+            "https://x-access-token:${{ secrets.github-pat }}@github.com/${{ inputs.dest-repository }}.git"
+
           git commit -m "chore(posts): sync from vault @ $GITHUB_SHA"
+
           git push origin HEAD:${{ inputs.dest-ref }}
