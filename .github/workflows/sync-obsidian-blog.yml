@@ -4,31 +4,32 @@ on:
   workflow_call:
     inputs:
       dest-repository:
+        type: string
         required: true
 
       dest-ref:
+        type: string
         required: false
         default: main
 
       src-dir:
+        type: string
         required: false
         default: content/posts
 
       post-dir:
+        type: string
         required: false
-        default: posts
+        default: post
 
       attachment-dir:
+        type: string
         required: false
         default: attachment
 
-      dest-dir:
-        required: false
-        default: pages
-
     secrets:
       # secrets for target repo
-      GITHUB_PAT:
+      github-pat:
         required: true
 
 # prevent concurrent runs on the same ref in the same repo
@@ -51,29 +52,48 @@ jobs:
         with:
           repository: ${{ github.repository }}
           ref: main
-          fetch-depth: 1
+          # for detecting changes
+          fetch-depth: 2
+          path: source
+
+      # # 2. checkout dest repo
+      # - name: Checkout dest repository
+      #   uses: actions/checkout@v4
+      #   with:
+      #     repository: ${{ inputs.dest-repo }}
+      #     ref: ${{ inputs.dest-ref }}
+      #     # for detecting changes
+      #     path: dest
 
       # 2. rsync
       - name: Detect changes in content/
         id: diff
+        working-directory: ./source
         run: |
-          local before="${{ github.event.before }}"
-          local after="${{ github.sha }}"
+          if git diff --queit HEAD~1 HEAD -- '${{ inputs.post-dir }}' '${{ inputs.attachment-dir }}'; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          if
 
-          if [[ "$before" == "0000000000000000000000000000000000000000" || -z "$before" ]]; then
-            before=$(git hash-object -t tree /dev/null)
-          fi
+          # local before="${{ github.event.before }}"
+          # local after="${{ github.sha }}"
 
-          git fetch --no-tags origin "$before" "$after" >/dev/null 2>&1 || true
-          if git diff
+          # if [[ "$before" == "0000000000000000000000000000000000000000" || -z "$before" ]]; then
+          #   before=$(git hash-object -t tree /dev/null)
+          # fi
+
+          # git fetch --no-tags origin "$before" "$after" >/dev/null 2>&1 || true
+          # if git diff
 
       # 2. sparse checkout src repo to copy files
       - name: Checkout dest repository
         uses: actions/checkout@v4
         with:
-          repository: ${{ inputs.dest-repo }}
+          repository: ${{ inputs.dest-repository }}
           ref: main
           fetch-depth: 1
+          path: dest
 
       # 3. apply rsync
       - name: Apply rsync posts
@@ -82,7 +102,7 @@ jobs:
           rsync -avh --delete \
             --exclude='.obsidian/' \
             --exclude='.DS_Store' \
-            ${{ inputs.post-dir }} ./pages/
+            ./source/${{ inputs.post-dir }} ./dest/pages/
 
       - name: Apply rsync attachments
         if: steps.diff.outputs.changed == 'true'
@@ -90,11 +110,11 @@ jobs:
           rsync -avh --delete \
             --exclude='.obsidian/' \
             --exclude='.DS_Store' \
-            ${{ inputs.attachment-dir }} ./pages/
+            ./source/${{ inputs.attachment-dir }} ./dest/pages/
 
       - name: Commit and Push
         if: steps.diff.outputs.changed == 'true'
-        working-directory: ${{ github/workspace }}/target
+        working-directory: ./dest
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
