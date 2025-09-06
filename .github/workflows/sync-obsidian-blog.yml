@@ -126,7 +126,7 @@ jobs:
 
       - name: Commit and Push
         if: steps.diff.outputs.changed == 'true'
-        working-directory: ./dest
+        working-directory: ./dest/${{ inputs.dest-repository }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
