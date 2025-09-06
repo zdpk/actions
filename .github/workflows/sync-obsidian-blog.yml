@@ -74,7 +74,7 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           else
             echo "changed=true" >> $GITHUB_OUTPUT
-          if
+          fi
 
           # local before="${{ github.event.before }}"
           # local after="${{ github.sha }}"
