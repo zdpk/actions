@@ -20,12 +20,12 @@ on:
       post-dir:
         type: string
         required: false
-        default: post
+        default: pages
 
       attachment-dir:
         type: string
         required: false
-        default: attachment
+        default: public/images
 
     secrets:
       # secrets for target repo
