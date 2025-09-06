@@ -117,6 +117,8 @@ jobs:
       - name: Apply rsync attachments
         if: steps.diff.outputs.changed == 'true'
         run: |
+          mkdir -p ./dest/${{ inputs.dest-attachment-dir }}
+
           rsync -avh --delete \
             --exclude='.obsidian/' \
             --exclude='.DS_Store' \
