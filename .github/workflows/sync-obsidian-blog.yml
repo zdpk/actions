@@ -17,12 +17,22 @@ on:
         required: false
         default: content/posts
 
-      post-dir:
+      src-post-dir:
+        type: string
+        required: false
+        default: post
+
+      src-attachment-dir:
+        type: string
+        required: false
+        default: attachment
+
+      dest-post-dir:
         type: string
         required: false
         default: pages
 
-      attachment-dir:
+      dest-attachment-dir:
         type: string
         required: false
         default: public/images
@@ -70,7 +80,7 @@ jobs:
         id: diff
         working-directory: ./source
         run: |
-          if git diff --queit HEAD~1 HEAD -- '${{ inputs.post-dir }}' '${{ inputs.attachment-dir }}'; then
+          if git diff --queit HEAD~1 HEAD -- '${{ inputs.src-post-dir }}' '${{ inputs.src-attachment-dir }}'; then
             echo "changed=false" >> $GITHUB_OUTPUT
           else
             echo "changed=true" >> $GITHUB_OUTPUT
@@ -102,7 +112,7 @@ jobs:
           rsync -avh --delete \
             --exclude='.obsidian/' \
             --exclude='.DS_Store' \
-            ./source/${{ inputs.post-dir }} ./dest/pages/
+            ./source/${{ inputs.src-post-dir }} ./dest/${{ inputs.dest-post-dir }}
 
       - name: Apply rsync attachments
         if: steps.diff.outputs.changed == 'true'
@@ -110,7 +120,7 @@ jobs:
           rsync -avh --delete \
             --exclude='.obsidian/' \
             --exclude='.DS_Store' \
-            ./source/${{ inputs.attachment-dir }} ./dest/pages/
+            ./source/${{ inputs.src-attachment-dir }} ./dest/${{ inputs.dest-attachment-dir }}
 
       - name: Commit and Push
         if: steps.diff.outputs.changed == 'true'
