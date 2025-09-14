@@ -1,0 +1,16 @@
+{
+  "name": "zdpk-actions",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "license": "UNLICENSED",
+  "description": "Reusable GitHub Actions and workflows",
+  "scripts": {
+    "sync:notion": "node scripts/sync-notion.mjs"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.2.14",
+    "notion-to-md": "^3.1.0"
+  }
+}
+

@@ -1,0 +1,14 @@
+name: Test Notion Sync (Dry Run)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-dry-run:
+    uses: zdpk/actions/.github/workflows/sync-notion-posts.yml@main
+    with:
+      dest-dir: content/posts
+      notion-database-id: 00000000000000000000000000000000
+      dry-run: true
+      commit: false
+

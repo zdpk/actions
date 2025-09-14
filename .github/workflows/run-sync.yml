@@ -1,0 +1,30 @@
+name: Run Notion Sync (Configurable)
+
+on:
+  workflow_dispatch:
+    inputs:
+      notion-database-id:
+        description: Notion Database ID
+        required: true
+        type: string
+      dest-dir:
+        description: Destination directory for MDX files
+        required: true
+        default: content/posts
+        type: string
+      commit:
+        description: Commit and push changes
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  sync:
+    uses: zdpk/actions/.github/workflows/sync-notion-posts.yml@main
+    with:
+      notion-database-id: ${{ inputs.notion-database-id }}
+      dest-dir: ${{ inputs.dest-dir }}
+      commit: ${{ inputs.commit }}
+    secrets:
+      notion-token: ${{ secrets.NOTION_TOKEN }}
+

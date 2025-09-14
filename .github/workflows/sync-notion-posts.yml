@@ -1,0 +1,174 @@
+name: Sync Notion Posts
+
+on:
+  workflow_call:
+    inputs:
+      dest-dir:
+        description: Target directory to write MDX files
+        type: string
+        required: true
+      notion-database-id:
+        description: Notion database ID
+        type: string
+        required: true
+      slug-property:
+        description: Property name to read slug from (rich_text)
+        type: string
+        required: false
+        default: Slug
+      title-property:
+        description: Title property name
+        type: string
+        required: false
+        default: Title
+      filename-property:
+        description: Optional property to override output filename
+        type: string
+        required: false
+        default: ''
+      published-property:
+        description: Optional checkbox property to filter published pages
+        type: string
+        required: false
+        default: Published
+      draft-property:
+        description: Optional checkbox property to set draft. If absent, draft = !published
+        type: string
+        required: false
+        default: ''
+      tags-property:
+        description: multi_select property for tags
+        type: string
+        required: false
+        default: Tags
+      category-property:
+        description: select property for category
+        type: string
+        required: false
+        default: ''
+      excerpt-property:
+        description: rich_text property used as excerpt/summary
+        type: string
+        required: false
+        default: Summary
+      cover-url-property:
+        description: url/files property for cover image
+        type: string
+        required: false
+        default: Cover
+      date-property:
+        description: date property for published date (falls back to created_time)
+        type: string
+        required: false
+        default: Date
+      author-property:
+        description: people or rich_text property for author(s)
+        type: string
+        required: false
+        default: Writer
+      status-property:
+        description: select property for status
+        type: string
+        required: false
+        default: Status
+      published-status-name:
+        description: value of status that means published
+        type: string
+        required: false
+        default: Published
+      draft-status-name:
+        description: value of status that means draft
+        type: string
+        required: false
+        default: Draft
+      sync-property:
+        description: optional checkbox property; only sync when true
+        type: string
+        required: false
+        default: Sync
+      commit:
+        description: Commit and push changes
+        type: boolean
+        required: false
+        default: true
+      dry-run:
+        description: Generate sample files without hitting Notion API
+        type: boolean
+        required: false
+        default: false
+      commit-message-prefix:
+        description: Prefix for commit message
+        type: string
+        required: false
+        default: 'chore(posts): sync from notion'
+    secrets:
+      notion-token:
+        description: Notion integration secret
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout caller repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Checkout action repository (this repo)
+        uses: actions/checkout@v4
+        with:
+          repository: zdpk/actions
+          ref: main
+          path: action
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: action
+        run: npm install --no-audit --no-fund
+
+      - name: Sync Notion -> MDX
+        working-directory: action
+        env:
+          NOTION_DATABASE_ID: ${{ inputs.notion-database-id }}
+          NOTION_TOKEN: ${{ secrets.notion-token }}
+          DEST_DIR: ${{ inputs.dest-dir }}
+          SLUG_PROPERTY: ${{ inputs.slug-property }}
+          TITLE_PROPERTY: ${{ inputs.title-property }}
+          PUBLISHED_PROPERTY: ${{ inputs.published-property }}
+          DRAFT_PROPERTY: ${{ inputs.draft-property }}
+          STATUS_PROPERTY: ${{ inputs.status-property }}
+          PUBLISHED_STATUS_NAME: ${{ inputs.published-status-name }}
+          DRAFT_STATUS_NAME: ${{ inputs.draft-status-name }}
+          SYNC_PROPERTY: ${{ inputs.sync-property }}
+          TAGS_PROPERTY: ${{ inputs.tags-property }}
+          CATEGORY_PROPERTY: ${{ inputs.category-property }}
+          EXCERPT_PROPERTY: ${{ inputs.excerpt-property }}
+          COVER_URL_PROPERTY: ${{ inputs.cover-url-property }}
+          DATE_PROPERTY: ${{ inputs.date-property }}
+          FILENAME_PROPERTY: ${{ inputs.filename-property }}
+          AUTHOR_PROPERTY: ${{ inputs.author-property }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          node scripts/sync-notion.mjs
+
+      - name: Commit and Push
+        if: ${{ inputs.commit }}
+        run: |
+          if [[ -z "$(git status --porcelain -- ${{ inputs.dest-dir }})" ]]; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "${{ inputs.dest-dir }}"
+          git commit -m "${{ inputs.commit-message-prefix }} @ $GITHUB_SHA"
+          git push
