@@ -27,4 +27,3 @@ jobs:
       commit: ${{ inputs.commit }}
     secrets:
       notion-token: ${{ secrets.NOTION_TOKEN }}
-
