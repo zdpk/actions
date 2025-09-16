@@ -54,7 +54,8 @@ jobs:
     steps:
       - name: Checkout source repository
         uses: actions/checkout@v4
-        # with:
+        with:
+          path: src-repo
         #   repository: ${{ env.SRC_REPO }}
         #   ref: ${{ env.SRC_REF }}
         #   token: ${{ secrets.src-repo-token || github.token }}
@@ -64,24 +65,25 @@ jobs:
           repository: ${{ env.DST_REPO }}
           ref: ${{ env.DST_REF }}
           token: ${{ env.GITHUB_PAT }}
-          path: ${{ inputs.dst-path }}
+          path: dst-repo
 
       - name: Mirror with rsync
         run: |
           set -euo pipefail
           # Ensure source path exists, if not, create an empty dir to sync (which will delete dest)
-          mkdir -p "$SRC_PATH"
+          mkdir -p "src-repo/$SRC_PATH"
           # Ensure destination path exists
-          mkdir -p "dest-repo/$DST_PATH"
+          mkdir -p "dst-repo/$DST_PATH"
 
           rsync -av --delete \
             --filter=':- .gitignore' \
             --exclude='.git/' \
-            "$SRC_PATH/" "dest-repo/$DST_PATH/"
+            "src-repo/$SRC_PATH/" "dst-repo/$DST_PATH/"
 
       - name: Commit and push to destination
         run: |
           set -euo pipefail
+          cd dst-repo
 
           git config user.name "$GIT_USER_NAME"
           git config user.email "$GIT_USER_EMAIL"
