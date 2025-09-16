@@ -70,15 +70,19 @@ jobs:
       - name: Mirror with rsync
         run: |
           set -euo pipefail
+
           # Ensure source path exists, if not, create an empty dir to sync (which will delete dest)
           mkdir -p "src-repo/$SRC_PATH"
-          # Ensure destination path exists
           mkdir -p "dst-repo/$DST_PATH"
 
+          cd "src-repo/$SRC_PATH"
+
+          git ls-files -z > /tmp/tracked-files.lst
+
           rsync -av --delete \
-            --filter=':- .gitignore' \
+            --from0 --files-from=/tmp/tracked-files.lst \
             --exclude='.git/' \
-            "src-repo/$SRC_PATH/" "dst-repo/$DST_PATH/"
+            ./ "$GITHUB_WORKSPACE/dst-repo/$DST_PATH/"
 
       - name: Commit and push to destination
         run: |
