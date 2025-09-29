@@ -11,7 +11,12 @@ on:
       src-path:
         description: 'Source directory to sync.'
         required: false
-        default: '.'
+        default: 'content'
+        type: string
+      src-attachment-path:
+        description: 'Source attachment directory to sync.'
+        required: false
+        default: 'attachment'
         type: string
       dst-repo:
         description: 'Destination repository (owner/repo).'
@@ -25,7 +30,12 @@ on:
       dst-path:
         description: 'Destination path inside destination repo.'
         required: false
-        default: '.'
+        default: 'content'
+        type: string
+      dst-attachment-path:
+        description: 'Destination path for attachments inside destination repo.'
+        required: false
+        default: 'attachment'
         type: string
     secrets:
       github-pat:
@@ -45,9 +55,11 @@ jobs:
       SRC_REPO: ${{ github.repository }}
       SRC_REF: ${{ inputs.src-ref }}
       SRC_PATH: ${{ inputs.src-path }}
+      SRC_ATTACHMENT_PATH: ${{ inputs.src-attachment-path }}
       DST_REPO: ${{ inputs.dst-repo }}
       DST_REF: ${{ inputs.dst-ref }}
       DST_PATH: ${{ inputs.dst-path }}
+      DST_ATTACHMENT_PATH: ${{ inputs.dst-attachment-path }}
       GIT_USER_NAME: 'github-actions[bot]'
       GIT_USER_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com'
       GITHUB_PAT: ${{ secrets.github-pat }}
@@ -59,6 +71,7 @@ jobs:
         #   repository: ${{ env.SRC_REPO }}
         #   ref: ${{ env.SRC_REF }}
         #   token: ${{ secrets.src-repo-token || github.token }}
+
       - name: Checkout destination repository
         uses: actions/checkout@v4
         with:
@@ -67,22 +80,49 @@ jobs:
           token: ${{ env.GITHUB_PAT }}
           path: dst-repo
 
-      - name: Mirror with rsync
+      - name: Mirror content with rsync
         run: |
           set -euo pipefail
 
-          # Ensure source path exists, if not, create an empty dir to sync (which will delete dest)
+          # Ensure source/dest exist
           mkdir -p "src-repo/$SRC_PATH"
           mkdir -p "dst-repo/$DST_PATH"
 
-          cd "src-repo/$SRC_PATH"
-
+          # Build tracked file list relative to SRC_PATH
+          pushd "src-repo/$SRC_PATH" >/dev/null
           git ls-files -z > /tmp/tracked-files.lst
-
           rsync -av --delete \
             --from0 --files-from=/tmp/tracked-files.lst \
             --exclude='.git/' \
             ./ "$GITHUB_WORKSPACE/dst-repo/$DST_PATH/"
+          popd >/dev/null
+
+      - name: Mirror attachments with rsync (optional)
+        if: ${{ env.SRC_ATTACHMENT_PATH != '' && env.DST_ATTACHMENT_PATH != '' }}
+        run: |
+          set -euo pipefail
+
+          # Ensure source/dest exist
+          mkdir -p "src-repo/$SRC_ATTACHMENT_PATH"
+          mkdir -p "dst-repo/$DST_ATTACHMENT_PATH"
+
+          # Build tracked file list relative to SRC_ATTACHMENT_PATH
+          pushd "src-repo/$SRC_ATTACHMENT_PATH" >/dev/null
+          git ls-files -z > /tmp/tracked-attachments.lst || true
+
+          # If nothing tracked, still honor --delete to keep dest tidy
+          if [ -s /tmp/tracked-attachments.lst ]; then
+            rsync -av --delete \
+              --from0 --files-from=/tmp/tracked-attachments.lst \
+              --exclude='.git/' \
+              ./ "$GITHUB_WORKSPACE/dst-repo/$DST_ATTACHMENT_PATH/"
+          else
+            # No tracked files; purge destination dir to mirror empty state
+            rsync -av --delete \
+              --exclude='.git/' \
+              ./ "$GITHUB_WORKSPACE/dst-repo/$DST_ATTACHMENT_PATH/"
+          fi
+          popd >/dev/null
 
       - name: Commit and push to destination
         run: |
@@ -99,6 +139,5 @@ jobs:
             exit 0
           fi
 
-          git commit -m "chore(sync): rsync from ${{ env.SRC_REPO }}@${{ env.SRC_REF }} [skip ci]"
-          # checkout action이 origin 자격 증명을 이미 세팅
-          git push origin HEAD:${{ env.DST_REF }}
+          git commit -m "chore(sync): rsync from ${SRC_REPO}@${SRC_REF} (paths: ${SRC_PATH}${SRC_ATTACHMENT_PATH:+, ${SRC_ATTACHMENT_PATH}}) [skip ci]"
+          git push origin HEAD:${DST_REF}
